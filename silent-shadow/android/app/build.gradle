@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Release signing: pass -PKEYSTORE=... -PKEYSTORE_PASSWORD=... -PKEY_ALIAS=... -PKEY_PASSWORD=...
+def hasSigning = project.hasProperty('KEYSTORE')
+
+android {
+    namespace 'com.silentshadow.game'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.silentshadow.game'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '1.0'
+    }
+
+    if (hasSigning) {
+        signingConfigs {
+            release {
+                storeFile file(project.property('KEYSTORE'))
+                storePassword project.property('KEYSTORE_PASSWORD')
+                keyAlias project.property('KEY_ALIAS')
+                keyPassword project.property('KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (hasSigning) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// The game is a single HTML file; bundle it as an app asset.
+tasks.register('copyGame', Copy) {
+    from(file('../../index.html'))
+    into(layout.buildDirectory.dir('generated/game-assets'))
+}
+android.sourceSets.main.assets.srcDir(layout.buildDirectory.dir('generated/game-assets'))
+tasks.named('preBuild') { dependsOn 'copyGame' }

@@ -1,0 +1,8 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- pale moon glow -->
+    <path android:fillColor="#3A444D" android:pathData="M54,54m-26,0a26,26 0,1 1,52 0a26,26 0,1 1,-52 0"/>
+    <!-- silhouette -->
+    <path android:fillColor="#030304" android:pathData="M54,36m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0"/>
+    <path android:fillColor="#030304" android:pathData="M49,42L59,42L60,58L56,58L56,72L61,72L61,76L53,76L53,58L52,58L52,76L46,76L46,72L51,72L51,58L48,58Z"/>
+</vector>

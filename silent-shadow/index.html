@@ -167,7 +167,7 @@ const LEVELS = [
       m.set(57, 11, 'E');
     }),
     hints: [
-      { c: 3, r: 7, t: 'الحركة: A / D أو الأسهم\nالقفز: W أو Space أو ↑' },
+      { c: 3, r: 7, t: 'الحركة: A / D أو الأسهم\nالقفز: W أو Space أو ↑', tt: 'الحركة: ◀ ▶\nالقفز: ▲' },
       { c: 8, r: 3, t: 'اقفز فوق الفجوة' },
       { c: 19, r: 4, t: 'ادفع الصندوق نحو الجدار ثم اصعد فوقه' },
       { c: 35, r: 5, t: 'ادفع الصندوق فوق الزر ليُفتح الباب' }
@@ -259,7 +259,7 @@ const Sound = {
         this.ambient();
       } catch (e) { this.ctx = null; }
     }
-    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx && this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
   },
   ambient() {
     const c = this.ctx;
@@ -486,8 +486,9 @@ const KEYMAP = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'ri
   KeyE: 'act', KeyF: 'act', KeyX: 'act', ShiftLeft: 'act', ShiftRight: 'act', ArrowDown: 'act', KeyS: 'act' };
 
 window.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   const k = KEYMAP[e.code];
-  if (e.repeat) { if (k && mode === 'play') e.preventDefault(); return; }
+  if (e.repeat) { if (k && mode === 'play') { e.preventDefault(); keys[k] = true; } return; }
   Sound.unlock();
   if (mode === 'play') {
     if (k) { e.preventDefault(); keys[k] = true; if (k === 'jump') jumpLatch = true; return; }
@@ -611,7 +612,9 @@ function updatePlayer(h) {
   for (const b of boxes) {
     if (b.vy <= 120 && overlap(p, b)) {
       const l = p.x + p.w - b.x, r = b.x + b.w - p.x;
-      p.x = l < r ? b.x - p.w : b.x + b.w;
+      const first = l < r ? b.x - p.w : b.x + b.w;
+      p.x = first;
+      if (solidRect(p.x, p.y, p.w, p.h)) p.x = l < r ? b.x + b.w : b.x - p.w;
     }
   }
 }
@@ -726,6 +729,7 @@ function kill() {
 }
 function respawn() {
   const p = player;
+  jumpLatch = false; p.buf = 0;
   p.x = checkpoint.x; p.y = checkpoint.y; p.vx = p.vy = 0; p.grab = null; p.onGround = false; p.pushing = false;
   boxes.forEach((b, i) => { const s = checkpoint.boxes[i]; b.x = s.x; b.y = s.y; b.vy = 0; });
   phase = 'playing'; fadeTarget = 0; snapCamera();
@@ -733,6 +737,8 @@ function respawn() {
 function finishLevel() {
   if (phase !== 'playing') return;
   phase = 'finishing'; finT = 0; player.grab = null; Sound.win();
+  if (levelIdx + 1 < LEVELS.length) save.unlocked = Math.max(save.unlocked, levelIdx + 1); else save.done = true;
+  writeSave();
 }
 function nextLevel() {
   if (levelIdx + 1 < LEVELS.length) {
@@ -814,7 +820,7 @@ function update(dt) {
   let ht = '';
   if (phase === 'playing') {
     const pc = (player.x + PW / 2) / T;
-    for (const hint of hints) if (Math.abs(pc - hint.c) <= hint.r) { ht = hint.t; break; }
+    for (const hint of hints) if (Math.abs(pc - hint.c) <= hint.r) { ht = (hint.tt && document.body.classList.contains('touch')) ? hint.tt : hint.t; break; }
   }
   if (ht) hintText = ht;
   hintAlpha = approach(hintAlpha, ht ? 1 : 0, dt * 2.5);
@@ -1215,15 +1221,22 @@ function updateHud() {
   $('hudLevel').textContent = 'المرحلة ' + (levelIdx + 1) + ' / ' + LEVELS.length;
   $('hudDeaths').textContent = 'المحاولات الفاشلة: ' + save.deaths;
 }
+function clearInput() {
+  for (const k in keys) keys[k] = false;
+  for (const k in tch) tch[k] = false;
+  jumpLatch = false;
+  document.querySelectorAll('.tb.on').forEach(el => el.classList.remove('on'));
+}
 function startLevel(idx) {
-  Sound.unlock();
+  Sound.unlock(); clearInput();
   hideScreens(); mode = 'play'; document.body.classList.add('playing');
   for (const k in keys) keys[k] = false;
   loadLevel(idx);
 }
-function pauseGame() { if (mode !== 'play') return; mode = 'pause'; showScreen('sPause'); for (const k in keys) keys[k] = false; for (const k in tch) tch[k] = false; }
+function pauseGame() { if (mode !== 'play') return; mode = 'pause'; showScreen('sPause'); clearInput(); }
 function resumeGame() { if (mode !== 'pause') return; mode = 'play'; hideScreens(); }
 function toMenu() {
+  clearInput();
   mode = 'menu'; document.body.classList.remove('playing');
   loadLevel(0); card = null; fade = 0.6; fadeTarget = 0;
   refreshMenu(); showScreen('sMenu');
@@ -1283,7 +1296,7 @@ refreshMenu();
 requestAnimationFrame(frame);
 
 /* واجهة اختبار (للتصحيح فقط) */
-window.__ss = {
+if (/[?&]debug\b/.test(location.search)) window.__ss = {
   start: startLevel,
   sim(frames, inputs, fn) {                           // تشغيل المحاكاة يدوياً بدون رسم
     for (const k in inputs || {}) keys[k] = !!inputs[k];

@@ -8,7 +8,7 @@ const path = require('path');
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => m.type() === 'error' && errors.push(m.text()));
-  await page.goto('file://' + path.resolve(__dirname, 'index.html'));
+  await page.goto('file://' + path.resolve(__dirname, 'index.html') + '?debug');
 
   const results = await page.evaluate(() => {
     const S = __ss, out = [];
@@ -90,7 +90,7 @@ const path = require('path');
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
   const mp = await ctx.newPage();
   mp.on('pageerror', e => errors.push(e.message));
-  await mp.goto('file://' + path.resolve(__dirname, 'index.html'));
+  await mp.goto('file://' + path.resolve(__dirname, 'index.html') + '?debug');
   await mp.tap('#mContinue');
   await mp.waitForTimeout(500);
   const x0 = await mp.evaluate(() => __ss.player.x);
